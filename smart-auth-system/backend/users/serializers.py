@@ -19,12 +19,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()   # ✅ changed
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
         user = authenticate(
-            username=data['email'],   # 👈 email passed as username
+            username=data['email'],
             password=data['password']
         )
 

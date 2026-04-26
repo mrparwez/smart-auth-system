@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 from django.conf import settings
 from django.db import models
 
@@ -9,6 +10,7 @@ class CustomUser(AbstractUser):
     risk_score = models.FloatField(default=0.0)
     is_locked = models.BooleanField(default=False)
     failed_attempts =models.IntegerField(default=0)
+    lock_until=models.DateTimeField(null=True,blank=True)
 
     USERNAME_FIELD='email'
     REQUIRED_FIELDS=['username']

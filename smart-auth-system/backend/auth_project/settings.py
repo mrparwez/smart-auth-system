@@ -27,7 +27,12 @@ SECRET_KEY = "django-insecure-#(%(_=5$9l7po42oh6jf#y@-km7$ms5jf2phfrx#!22b81o-i7
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    ".github.dev",
+    ".app.github.dev"
+]
 
 
 # Application definition
@@ -129,6 +134,11 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Added by parwez:
+
+RISK_LOCK_THRESHOLD = int(os.getenv("RISK_LOCK_THRESHOLD", 5))
+MAX_FAILED_ATTEMPTS = int(os.getenv("MAX_FAILED_ATTEMPTS", 5))
+LOCK_TIME_MINUTES = int(os.getenv("LOCK_TIME_MINUTES", 10))
+
 AUTH_USER_MODEL='users.CustomUser'
 
 REST_FRAMEWORK = {
