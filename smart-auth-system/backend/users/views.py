@@ -1,18 +1,21 @@
 import logging
+from datetime import timedelta
 
 from django.contrib.auth import authenticate
+from django.conf import settings
+from django.utils import timezone
+
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from .serializers import RegisterSerializer, LoginSerializer
 from .models import LoginHistory, LoginAttempt
-from django.conf import settings
-from django.utils import timezone
-from datetime import timedelta
-from users.risk_engine.engine import RiskEngine  # ✅ ONLY ONE IMPORT
+from users.models import CustomUser
+from users.risk_engine.engine import RiskEngine
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +43,7 @@ class RegisterView(APIView):
 
 
 # =========================
-# LOGIN VIEW (PHASE 3)
+# LOGIN VIEW
 # =========================
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -60,27 +63,9 @@ class LoginView(APIView):
         user_agent = request.META.get("HTTP_USER_AGENT", "unknown")
 
         # 🔐 AUTHENTICATE USER
-        
         user = authenticate(username=email, password=password)
-        if user.is_locked:
-            if user.lock_until and timezone.now() >= user.lock_until:
-                user.is_locked = False
-                user.lock_until = None
-                user.risk_score = max(0, user.risk_score - 2)  # optional recovery
 
-                user.save()
-
-                logger.info(f"AUTO UNLOCKED | {user.email}")
-        else:
-            return Response(
-                {
-                    "error": "Account temporarily locked",
-                    "unlock_time": user.lock_until
-                },
-                status=403
-            )
-
-        # ❌ LOGIN FAILED
+        # ❌ LOGIN FAILED → BRUTE FORCE LOGIC
         if not user:
             LoginAttempt.objects.create(
                 email=email,
@@ -88,30 +73,69 @@ class LoginView(APIView):
                 success=False
             )
 
-            logger.warning(f"FAILED LOGIN | email={email} | ip={ip}")
+            time_threshold = timezone.now() - timedelta(minutes=10)
+
+            failed_attempts = LoginAttempt.objects.filter(
+                email=email,
+                success=False,
+                timestamp__gte=time_threshold
+            ).count()
+
+            logger.warning(f"FAILED LOGIN | email={email} | attempts={failed_attempts}")
+
+            # 🔐 LOCK USER IF EXISTS
+            try:
+                user_obj = CustomUser.objects.get(email=email)
+
+                if failed_attempts >= settings.MAX_FAILED_ATTEMPTS:
+                    user_obj.is_locked = True
+                    user_obj.lock_until = timezone.now() + timedelta(
+                        minutes=settings.LOCK_TIME_MINUTES
+                    )
+                    user_obj.save()
+
+                    logger.warning(f"BRUTE FORCE LOCK | {email}")
+
+            except CustomUser.DoesNotExist:
+                pass
 
             return Response(
                 {"error": "Invalid credentials"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        # 🚫 ACCOUNT LOCK CHECK
-        if getattr(user, "is_locked", False):
-            logger.warning(f"LOCKED ACCOUNT ACCESS | {user.email}")
+        # 🚫 CHECK LOCK STATUS
+        if user.is_locked:
 
-            return Response(
-                {"error": "Account is locked"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            # 🟢 AUTO UNLOCK
+            if user.lock_until and timezone.now() >= user.lock_until:
+                user.is_locked = False
+                user.lock_until = None
+                user.risk_score = max(0, user.risk_score - 2)
+                user.save()
 
-        # 🟢 SUCCESS LOGIN ATTEMPT LOG
+                logger.info(f"AUTO UNLOCKED | {user.email}")
+
+            else:
+                return Response(
+                    {
+                        "error": "Account temporarily locked",
+                        "unlock_time": user.lock_until
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # 🟢 SUCCESS LOGIN ATTEMPT
         LoginAttempt.objects.create(
             email=email,
             ip_address=ip,
             success=True
         )
 
-        # 🧠 RISK ENGINE EXECUTION
+        # 🧹 CLEAR FAILED ATTEMPTS
+        LoginAttempt.objects.filter(email=email, success=False).delete()
+
+        # 🧠 RISK ENGINE
         last_login = LoginHistory.objects.filter(user=user).last()
 
         engine = RiskEngine()
@@ -134,10 +158,15 @@ class LoginView(APIView):
 
         # ⚠️ UPDATE RISK SCORE
         user.risk_score = min(10.0, user.risk_score + result["risk_score"])
-        if user.risk_score >settings.RISK_LOCK_THRESHOLD:
-            user.lock_until = timezone.now() + timedelta(minutes=settings.LOCK_TIME_MINUTES)
+
+        if user.risk_score > settings.RISK_LOCK_THRESHOLD:
+            user.is_locked = True
+            user.lock_until = timezone.now() + timedelta(
+                minutes=settings.LOCK_TIME_MINUTES
+            )
+
             logger.warning(f"ACCOUNT LOCKED | {user.email} | risk={user.risk_score}")
-            user.is_locked=True
+
         user.save()
 
         # 🔑 JWT TOKEN
@@ -179,4 +208,4 @@ class ProfileView(APIView):
             "email": user.email,
             "username": user.username,
             "risk_score": user.risk_score
-        })
+        }) 
