@@ -47,9 +47,11 @@ INSTALLED_APPS = [
     "risk_engine",
     "users",
     "rest_framework",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -58,8 +60,13 @@ MIDDLEWARE = [
     'users.middleware.CleanLogMiddleware',
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.app.github.dev"
+]
 ROOT_URLCONF = "auth_project.urls"
 
 TEMPLATES = [

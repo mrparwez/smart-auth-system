@@ -1,35 +1,29 @@
+asgiref==3.11.1
+certifi==2026.4.22
+charset-normalizer==3.4.7
 Django==4.2.11
-djangorestframework==3.15.1
-django-filter==24.2
-
-# Authentication & Security
-
-djangorestframework-simplejwt==5.3.1
-django-cors-headers==4.3.1
-
-# Database (optional depending on your DB)
-
-psycopg2-binary==2.9.9   # PostgreSQL
-mysqlclient==2.2.4       # MySQL (use if needed)
-
-# Environment variables
-
-python-decouple==3.8
-
-# Utilities
-
-requests==2.32.3
-
-# AI / Risk Logic (basic)
-
-scikit-learn==1.5.1
-numpy==1.26.4
-pandas==2.2.2
-
-# Optional (for OTP/email)
-
 django-anymail==10.3
-
-# Development tools
-
+django-cors-headers==4.3.1
+django-filter==24.2
+djangorestframework==3.15.1
+djangorestframework-simplejwt==5.3.1
 gunicorn==22.0.0
+idna==3.13
+joblib==1.5.3
+mysqlclient==2.2.4
+numpy==1.26.4
+packaging==26.1
+pandas==2.2.2
+psycopg2-binary==2.9.9
+PyJWT==2.12.1
+python-dateutil==2.9.0.post0
+python-decouple==3.8
+pytz==2026.1.post1
+requests==2.32.3
+scikit-learn==1.5.1
+scipy==1.17.1
+six==1.17.0
+sqlparse==0.5.5
+threadpoolctl==3.6.0
+tzdata==2026.2
+urllib3==2.6.3
